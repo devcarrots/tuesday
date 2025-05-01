@@ -80,6 +80,31 @@ defmodule Tuesday.Workspace.OrganizationMemberTest do
         )
       end)
     end
+
+    test "tenant of a different organization cannot invite org member" do
+      tenant = generate(organization()).id
+      another_organization_id = generate(organization()).id
+
+      changeset =
+        Ash.Changeset.for_create(
+          OrganizationMember,
+          :invite_org_member,
+          %{
+            email: "chaaru@example.com",
+            username: "chaaru",
+            role: :standard,
+            organization_id: another_organization_id
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
+    end
   end
 
   describe "update_org_member" do
@@ -119,6 +144,32 @@ defmodule Tuesday.Workspace.OrganizationMemberTest do
       assert member.username == "chaaru"
       assert member.role == :admin
     end
+
+    test "tenant of a different organization cannot update org member" do
+      tenant = generate(organization()).id
+      another_organization_id = generate(organization()).id
+
+      member =
+        generate(
+          organization_member(
+            username: "devy",
+            role: :standard,
+            organization_id: another_organization_id
+          )
+        )
+
+      changeset =
+        Ash.Changeset.for_update(member, :update_org_member, %{username: "chaaru", role: :admin},
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
+    end
   end
 
   describe "deactivate_org_member" do
@@ -128,6 +179,30 @@ defmodule Tuesday.Workspace.OrganizationMemberTest do
 
       assert {:ok, member} = Ash.Changeset.apply_attributes(changeset)
       assert member.status == :inactive
+    end
+
+    test "tenant of a different organization cannot deactivate org member" do
+      tenant = generate(organization()).id
+      another_organization_id = generate(organization()).id
+
+      member =
+        generate(
+          organization_member(
+            username: "devy",
+            role: :standard,
+            organization_id: another_organization_id
+          )
+        )
+
+      changeset =
+        Ash.Changeset.for_update(member, :deactivate_org_member, %{}, tenant: tenant)
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
     end
   end
 
@@ -139,5 +214,29 @@ defmodule Tuesday.Workspace.OrganizationMemberTest do
       assert {:ok, member} = Ash.Changeset.apply_attributes(changeset)
       assert member.status == :active
     end
+  end
+
+  test "tenant of a different organization cannot activate org member" do
+    tenant = generate(organization()).id
+    another_organization_id = generate(organization()).id
+
+    member =
+      generate(
+        organization_member(
+          username: "devy",
+          role: :standard,
+          organization_id: another_organization_id
+        )
+      )
+
+    changeset =
+      Ash.Changeset.for_update(member, :deactivate_org_member, %{}, tenant: tenant)
+
+    assert_has_error(changeset, fn error ->
+      match?(
+        %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+        error
+      )
+    end)
   end
 end

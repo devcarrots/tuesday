@@ -65,6 +65,35 @@ defmodule Tuesday.Projects.TaskTest do
 
       assert task.start_date == ~D[2025-05-01]
     end
+
+    test "tenant of a different cannot create task " do
+      tenant = generate(organization()).id
+      another_org = generate(organization())
+
+      changeset =
+        Ash.Changeset.for_create(
+          Task,
+          :create_task,
+          %{
+            title: "Some Task",
+            description: "some description",
+            priority: 3,
+            start_date: ~D[2025-05-01],
+            due_date: ~D[2025-05-11],
+            # doubt: should this be changed to project_id?
+            project_id: generate_id(),
+            organization_id: another_org.id
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
+    end
   end
 
   describe "update_task" do
@@ -92,6 +121,31 @@ defmodule Tuesday.Projects.TaskTest do
       changeset = Ash.Changeset.for_update(task, :update_task, task_params)
 
       refute changeset.valid?
+    end
+
+    test "tenant of a different organization cannot update task" do
+      tenant = generate(organization()).id
+      another_org = generate(organization())
+      task = generate(task(organization_id: another_org.id))
+
+      changeset =
+        Ash.Changeset.for_update(
+          task,
+          :update_task,
+          %{
+            title: "New Task",
+            description: "change description",
+            priority: 1
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
     end
   end
 
@@ -125,6 +179,36 @@ defmodule Tuesday.Projects.TaskTest do
       refute changeset.valid?
     end
 
+    test "tenant of a different organization cannot add sub task" do
+      tenant = generate(organization()).id
+      another_org = generate(organization())
+      task = generate(task(organization_id: another_org.id))
+
+      changeset =
+        Ash.Changeset.for_update(
+          task,
+          :add_sub_task,
+          %{
+            sub_task: %{
+              title: "Some Task",
+              description: "some description",
+              priority: 3,
+              due_date: ~D[2025-05-11],
+              parent_task_id: task.id,
+              project_id: generate_id()
+            }
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
+    end
+
     test "sub-task inherits project context" do
       # Placeholder: Validate that the sub-task’s project_id matches the parent task’s project_id.
       # Verify the sub-task is persisted with the correct project association.
@@ -144,6 +228,31 @@ defmodule Tuesday.Projects.TaskTest do
       changeset = Ash.Changeset.for_update(task, :add_parent_task, task_params)
 
       assert changeset.valid?
+    end
+
+    test "tenant of a different organization cannot add sub task" do
+      tenant = generate(organization()).id
+      another_org = generate(organization())
+      project = generate(project(name: "Project 1"))
+      parent_task_id = generate(task(project_id: project.id)).id
+      task = generate(task(organization_id: another_org.id))
+
+      changeset =
+        Ash.Changeset.for_update(
+          task,
+          :add_parent_task,
+          %{
+            parent_task_id: parent_task_id
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
     end
   end
 end

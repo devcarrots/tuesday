@@ -52,6 +52,35 @@ defmodule Tuesday.Projects.ProjectTest do
         match?(%{field: :organization_member_id, message: "Membership already exists."}, error)
       end)
     end
+
+    test "tenant of a different organization cannot add members to the project" do
+      tenant = generate(organization()).id
+      %{org_member: org_member, organization: organization} = create_org_member()
+      project = generate(project(organization_id: organization.id))
+
+      changeset =
+        Ash.Changeset.for_update(
+          project,
+          :add_members,
+          %{
+            project_members: [
+              %{
+                project_role: :admin,
+                organization_member_id: org_member.id,
+                project_id: project.id
+              }
+            ]
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
+    end
   end
 
   describe "update_member" do
@@ -72,6 +101,33 @@ defmodule Tuesday.Projects.ProjectTest do
       assert updated_project_member.id == project_member.id
       assert updated_project_member.project_role == :admin
     end
+
+    test "tenant cannot update project member of a different organization" do
+      tenant = generate(organization()).id
+
+      %{project_member: project_member, project: project} =
+        create_project_member(project_role: :standard)
+
+      changeset =
+        Ash.Changeset.for_update(
+          project,
+          :update_member,
+          %{
+            project_member: %{
+              id: project_member.id,
+              project_role: :admin
+            }
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
+    end
   end
 
   describe "remove_member" do
@@ -90,6 +146,33 @@ defmodule Tuesday.Projects.ProjectTest do
 
       assert_has_error(result, fn error ->
         match?(%Ash.Error.Query.NotFound{}, error)
+      end)
+    end
+
+    test "tenant of a different organization cannot remove project member" do
+      tenant = generate(organization()).id
+
+      %{project_member: project_member, project: project} =
+        create_project_member(project_role: :standard)
+
+      changeset =
+        Ash.Changeset.for_update(
+          project,
+          :remove_member,
+          %{
+            project_member: %{
+              id: project_member.id,
+              project_role: :admin
+            }
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
       end)
     end
   end
@@ -206,6 +289,32 @@ defmodule Tuesday.Projects.ProjectTest do
         match?(%{message: "must be greater than start_date"}, error)
       end)
     end
+
+    test "tenant of a different organization cannot create a project member" do
+      tenant = generate(organization()).id
+      another_organization_id = generate(organization()).id
+
+      changeset =
+        Ash.Changeset.for_create(
+          Project,
+          :create_project,
+          %{
+            name: "project",
+            description: "some description",
+            start_date: ~D[2025-04-10],
+            end_date: ~D[2025-05-01],
+            organization_id: another_organization_id
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
+    end
   end
 
   describe "update_project" do
@@ -252,6 +361,32 @@ defmodule Tuesday.Projects.ProjectTest do
         match?(%{message: "is required"}, error)
       end)
     end
+
+    test "tenant of a different organization cannot update a project member" do
+      tenant = generate(organization()).id
+      another_organization_id = generate(organization()).id
+
+      changeset =
+        Ash.Changeset.for_create(
+          Project,
+          :create_project,
+          %{
+            name: "project",
+            description: "some description",
+            start_date: ~D[2025-04-10],
+            end_date: ~D[2025-05-01],
+            organization_id: another_organization_id
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
+    end
   end
 
   describe "archive_project" do
@@ -262,6 +397,21 @@ defmodule Tuesday.Projects.ProjectTest do
       assert project.status == :completed
       assert changeset.valid?
       assert changeset.attributes.status == :archived
+    end
+
+    test "tenant of a different organization cannot archive project" do
+      tenant = generate(organization()).id
+      another_organization_id = generate(organization()).id
+      project = generate(project(status: :completed, organization_id: another_organization_id))
+
+      changeset = Ash.Changeset.for_update(project, :archive_project, %{}, tenant: tenant)
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
     end
   end
 
@@ -274,6 +424,21 @@ defmodule Tuesday.Projects.ProjectTest do
       assert changeset.valid?
       assert changeset.attributes.status == :completed
     end
+
+    test "tenant of a different organization cannot mark a project as complete" do
+      tenant = generate(organization()).id
+      another_organization_id = generate(organization()).id
+      project = generate(project(status: :active, organization_id: another_organization_id))
+
+      changeset = Ash.Changeset.for_update(project, :complete_project, %{}, tenant: tenant)
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
+    end
   end
 
   describe "activate_project" do
@@ -284,6 +449,21 @@ defmodule Tuesday.Projects.ProjectTest do
       assert project.status == :archived
       assert changeset.valid?
       assert changeset.attributes.status == :active
+    end
+
+    test "tenant of a different organization cannot mark a project as active" do
+      tenant = generate(organization()).id
+      another_organization_id = generate(organization()).id
+      project = generate(project(status: :archived, organization_id: another_organization_id))
+
+      changeset = Ash.Changeset.for_update(project, :activate_project, %{}, tenant: tenant)
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
     end
   end
 end

@@ -61,7 +61,8 @@ defmodule Tuesday.Projects.Task do
         :priority,
         :start_date,
         :due_date,
-        :project_id
+        :project_id,
+        :organization_id
       ]
 
       validate present(:title), message: "Is required"
@@ -131,6 +132,10 @@ defmodule Tuesday.Projects.Task do
     prefix "task"
     publish :create_task, [[:id, nil]]
     publish_all :update, [[:id]]
+  end
+
+  validations do
+    validate {Tuesday.Validations.TenantEqualsOrganization, []}
   end
 
   multitenancy do

@@ -225,6 +225,10 @@ defmodule Tuesday.Projects.Project do
   end
 
   validations do
+    validate {Tuesday.Validations.TenantEqualsOrganization, []}
+  end
+
+  validations do
     validate fn changeset, _context ->
                start_date = Ash.Changeset.get_attribute(changeset, :start_date)
                end_date = Ash.Changeset.get_attribute(changeset, :end_date)

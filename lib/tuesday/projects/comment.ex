@@ -40,7 +40,7 @@ defmodule Tuesday.Projects.Comment do
     create :create_comment do
       description "Creates a new comment."
 
-      accept [:body, :task_id]
+      accept [:body, :task_id, :organization_id]
 
       change relate_actor(:author)
 
@@ -75,6 +75,10 @@ defmodule Tuesday.Projects.Comment do
         authorize_if always()
       end
     end
+  end
+
+  validations do
+    validate {Tuesday.Validations.TenantEqualsOrganization, []}
   end
 
   multitenancy do

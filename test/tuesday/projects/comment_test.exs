@@ -57,6 +57,34 @@ defmodule Tuesday.Projects.CommentTest do
 
       assert actor.id == author.id
     end
+
+    test "tenant of a different organization cannot create a comment" do
+      tenant = generate(organization()).id
+      another_org = generate(organization())
+      %{org_member: org_member} = create_org_member(organization: another_org)
+      %{project: project} = create_project_member(org_member: org_member)
+      task_id = generate(task(project_id: project.id)).id
+
+      changeset =
+        Ash.Changeset.for_create(
+          Comment,
+          :create_comment,
+          %{
+            body: "description about a project task",
+            task_id: task_id,
+            organization_id: another_org.id
+          },
+          actor: org_member,
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
+      end)
+    end
   end
 
   describe "update_comment" do
@@ -83,6 +111,29 @@ defmodule Tuesday.Projects.CommentTest do
 
       assert_has_error(changeset, fn error ->
         match?(%Ash.Error.Changes.Required{field: :body}, error)
+      end)
+    end
+
+    test "tenant of a different organization cannot create a comment" do
+      tenant = generate(organization()).id
+      another_org_id = generate(organization()).id
+      comment = generate(comment(organization_id: another_org_id))
+
+      changeset =
+        Ash.Changeset.for_update(
+          comment,
+          :update_comment,
+          %{
+            body: "Updated comment"
+          },
+          tenant: tenant
+        )
+
+      assert_has_error(changeset, fn error ->
+        match?(
+          %{field: :organization_id, message: "Tenant is not the same as `:organization_id`"},
+          error
+        )
       end)
     end
   end

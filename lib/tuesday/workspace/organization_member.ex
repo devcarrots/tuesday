@@ -83,6 +83,7 @@ defmodule Tuesday.Workspace.OrganizationMember do
 
   validations do
     validate present(:username), message: "Username is required"
+    validate {Tuesday.Validations.TenantEqualsOrganization, []}
   end
 
   multitenancy do

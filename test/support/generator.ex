@@ -115,6 +115,8 @@ defmodule Tuesday.Generator do
           generate(project()).id
         end)
 
+    organization_id = opts[:organization_id]
+
     start_date = random_date()
     end_date = Date.add(start_date, Enum.random(31..45))
 
@@ -126,7 +128,8 @@ defmodule Tuesday.Generator do
       story_point: Enum.random([1, 3, 5, 8, 13, 21]),
       start_date: start_date,
       due_date: end_date,
-      project_id: project_id
+      project_id: project_id,
+      organization_id: organization_id
     }
 
     seed_generator(task_template, overrides: opts)
@@ -196,10 +199,13 @@ defmodule Tuesday.Generator do
           generate(task()).id
         end)
 
+    organization_id = opts[:organization_id]
+
     comment_template = %Comment{
       body: StreamData.string(:alphanumeric, min_length: 100, max_length: 200),
       task_id: task_id,
-      author_id: author_id
+      author_id: author_id,
+      organization_id: organization_id
     }
 
     seed_generator(comment_template, overrides: opts)
