@@ -68,6 +68,16 @@ defmodule Tuesday.Workspace.OrganizationTest do
       assert organization.can_standard_member_create_project
       assert organization.plan_type == :free
     end
+
+    test "slug attribute is set correctly from name given" do
+      changeset =
+        Ash.Changeset.for_create(Organization, :create_org_with_owner, %{
+          name: "dev Carrots",
+          member: %{email: "chaaru@example.com", username: "chaaru", role: :owner}
+        })
+
+      assert {:ok, %{slug: "dev-carrots"}} = Ash.Changeset.apply_attributes(changeset)
+    end
   end
 
   describe "update_org" do
